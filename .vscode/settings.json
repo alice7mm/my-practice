@@ -1,0 +1,11 @@
+{
+  "yaml.schemas": {
+    "https://json.schemastore.org/composer": [
+      "/*",
+    ],
+    "kubernetes": [
+      "*.yml",
+      "*.yaml"
+    ]
+  }
+}
