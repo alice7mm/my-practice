@@ -8,14 +8,13 @@ on:
       - 'v[0-9]+-[0-9]+'
 env:
   AWS_REGION: ap-northeast-1
-  # ECR_REPOSITORY: 370242726818.dkr.ecr.ap-northeast-1.amazonaws.com/test-ecr
-  # ECS_SERVICE: test-ecs-service-prod
-  # ECS_CLUSTER: test-ecs-prod
-  # ECS_TASK_DEFINITION: test-task
+  ECR_REPOSITORY: 370242726818.dkr.ecr.ap-northeast-1.amazonaws.com/test-ecr
+  ECS_SERVICE: test-ecs-service-prod
+  ECS_CLUSTER: test-ecs-prod
+  ECS_TASK_DEFINITION: test-task-prod
   CODE_DEPLOY_APP_NAME: AppECS-test-ecs-prod-test-ecs-service-prod
   CODE_DEPLOY_DPG_NAME: DgpECS-test-ecs-prod-test-ecs-service-prod
-  CONTAINER_NAME: MY_CONTAINER_NAME           # set this to the name of the container in the
-                                               # containerDefinitions section of your task definition
+  CONTAINER_NAME: test-container-prod
 
 permissions:
   contents: read
@@ -50,13 +49,13 @@ jobs:
     #     docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
     #     docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
     #     echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
-    # - name: Fill in the new image ID in the Amazon ECS task definition
-    #   id: task-def
-    #   uses: aws-actions/amazon-ecs-render-task-definition@v1
-    #   with:
-    #     task-definition: ${{ env.ECS_TASK_DEFINITION }}
-    #     container-name: ${{ env.CONTAINER_NAME }}
-    #     image: ${{ steps.build-image.outputs.image }}
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: ${{ env.ECS_TASK_DEFINITION }}
+        container-name: ${{ env.CONTAINER_NAME }}
+        image: ${{ github.sha | cut -c 1-7 }}
 
     # - name: Deploy Amazon ECS task definition
     #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -66,7 +65,16 @@ jobs:
     #     cluster: ${{ env.ECS_CLUSTER }}
     #     wait-for-service-stability: true
     - name: Run AWS CodeDeploy
-      run: aws deploy create-deployment --application-name ${{ env.CODE_DEPLOY_APP_NAME }} --deployment-group-name ${{ env.CODE_DEPLOY_DPG_NAME}} --github-location repository="alice7mm/my-practice",commitId="${{ github.sha }}"
-      env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_ACCESS_SECRET_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      # run: aws deploy create-deployment --application-name ${{ env.CODE_DEPLOY_APP_NAME }} --deployment-group-name ${{ env.CODE_DEPLOY_DPG_NAME}} --github-location repository="alice7mm/my-practice",commitId="${{ github.sha }}"
+      # env:
+      #   AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #   AWS_ACCESS_SECRET_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }} 
+        wait-for-service-stability: false
+        codedeploy-appspec: aws_ci_cd/appspec.yaml
+        codedeploy-application: ${{ env.CODE_DEPLOY_APP_NAME }}
+        codedeploy-deployment-group: ${{ env.CODE_DEPLOY_DPG_NAME }}

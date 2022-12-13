@@ -1,0 +1,11 @@
+version: 1
+
+Resources:
+  - TargetService:
+      Type: AWS::ECS::Service
+      Properties:
+        TaskDefinition: "Placeholder: GitHub Actions will fill this in"
+        LoadBalancerInfo:
+          ContainerName: "server"
+          ContainerPort: 80
+        PlatformVersion: "LATEST"
