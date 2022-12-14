@@ -60,7 +60,7 @@ jobs:
       with:
         task-definition: task-definition.json
         container-name: ${{ env.CONTAINER_NAME }}
-        image: ${{ steps.create-image-tag.outputs.IMAGE_TAG }}
+        image: ${{ env.ECR_REPOSITORY }}:${{ steps.create-image-tag.outputs.IMAGE_TAG }}
 
     # - name: Deploy Amazon ECS task definition
     #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
@@ -80,6 +80,6 @@ jobs:
         service: ${{ env.ECS_SERVICE }}
         cluster: ${{ env.ECS_CLUSTER }} 
         wait-for-service-stability: false
-        codedeploy-appspec: aws_ci_cd/appspec.yaml
+        codedeploy-appspec: aws_ci_cd/appspec.yml
         codedeploy-application: ${{ env.CODE_DEPLOY_APP_NAME }}
         codedeploy-deployment-group: ${{ env.CODE_DEPLOY_DPG_NAME }}
