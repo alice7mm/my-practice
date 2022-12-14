@@ -6,6 +6,6 @@ Resources:
       Properties:
         TaskDefinition: "Placeholder: GitHub Actions will fill this in"
         LoadBalancerInfo:
-          ContainerName: "server"
+          ContainerName: "test-container-prod"
           ContainerPort: 80
         PlatformVersion: "LATEST"
