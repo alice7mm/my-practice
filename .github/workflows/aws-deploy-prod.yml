@@ -53,6 +53,8 @@ jobs:
       run: |
         echo "$(ls -al /home/runner/work/my-practice)"
         echo "$(ls -al /home/runner/work/my-practice/my-practice)"
+        echo "$(cat aws_ci_cd/appspec.yml)"
+        echo "$(cat ./aws_ci_cd/appspec.yml)"
     #     aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition.json
     # - name: Create image tag
     #   env:
