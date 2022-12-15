@@ -51,6 +51,7 @@ jobs:
     #     echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
     - name: Download task definition
       run: |
+        echo "$(ls -al)"
         aws ecs describe-task-definition --task-definition ${{ env.ECS_TASK_DEFINITION }} --query taskDefinition > task-definition.json
     - name: Create image tag
       env:
