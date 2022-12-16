@@ -58,14 +58,16 @@ jobs:
       env:
         GITHUB_SHA: ${{ github.sha }}
       id: create-image-tag
-      run: echo "IMAGE_TAG=$(echo $GITHUB_SHA | cut -c 1-7)"
+      # run: echo "IMAGE_TAG=$(echo $GITHUB_SHA | cut -c 1-7)"
+      run: echo "::set-output name=image_tag::$(echo $GITHUB_SHA | cut -c 1-7)"
     - name: Fill in the new image ID in the Amazon ECS task definition
       id: task-def
       uses: aws-actions/amazon-ecs-render-task-definition@v1
       with:
         task-definition: task-definition.json
         container-name: ${{ env.CONTAINER_NAME }}
-        image: ${{ env.ECR_REPOSITORY }}:${{ steps.create-image-tag.outputs.IMAGE_TAG }}
+        # image: ${{ env.ECR_REPOSITORY }}:${{ steps.create-image-tag.outputs.IMAGE_TAG }}
+        image: ${{ env.ECR_REPOSITORY }}:${{ steps.create-image-tag.outputs.image_tag }}
 
     # - name: Deploy Amazon ECS task definition
     #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
