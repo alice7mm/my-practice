@@ -1,0 +1,27 @@
+name: Auto Format for Creator Frontend
+
+on:
+  pull_request:
+    branchs-ignore:
+    - 'main'
+    paths:
+    - 'frontend/creator/**'
+
+jobs:
+  assign-author:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.head_ref }}
+    - name: Formatting
+      run: |
+        npm install
+        npm run format
+      working-directory: ./frontend/creator
+    - name: Commit
+      run: |
+        git add .
+        git commit -m "Auto commit code format"
+        git push origin ${{ github.head_ref }}
