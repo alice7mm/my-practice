@@ -5,7 +5,7 @@ on:
     branchs-ignore:
     - 'main'
     paths:
-    - 'frontend/creator/**'
+    - 'frontend/test-app/**'
 
 jobs:
   assign-author:
@@ -19,7 +19,7 @@ jobs:
       run: |
         npm install
         npm run format
-      working-directory: ./frontend/creator
+      working-directory: ./frontend/test-app
     - name: Commit
       run: |
         git add .
