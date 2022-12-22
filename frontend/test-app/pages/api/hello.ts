@@ -10,5 +10,6 @@ export default function handler(
   res: NextApiResponse<Data>
 ) {
   console.log("hogehoge fugafuga");
+  console.log("hogehoge fugafuga");
   res.status(200).json({ name: "John Doe" });
 }
