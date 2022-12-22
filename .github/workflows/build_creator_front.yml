@@ -1,0 +1,32 @@
+name: Build Creator Frontend
+
+on:
+  pull_request:
+    branchs-ignore:
+    - 'main'
+    paths:
+    - 'frontend/test-app/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    default:
+      run:
+        working-directory: ./frontend/test-app
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.head_ref }}
+    - name: Install
+      run: npm install
+    - name: Lint
+      run: npm run lint
+    - name: Build
+      run: |
+        npm run build
+        npm run generate:client
+    - name: Test
+      run: npm run test:all
+    - name: E2E Test
+      run: npm run e2e
