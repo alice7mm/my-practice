@@ -11,5 +11,6 @@ export default function handler(
 ) {
   console.log("hogehoge fugafuga");
   console.log("hogehoge fugafuga");
+  console.log("hogehoge fugafuga");
   res.status(200).json({ name: "John Doe" });
 }
