@@ -2,100 +2,263 @@
 const API_KEY= 'irDm9kZO9XLliePM8GRFSx8ouc9ZHW4wZ4ftHPI7OZmZlD6hjCj0HNkSW9lcG9Fs'
 const API_BASE_URI='https://toranoana.backlog.jp/api/v2/'
 const PROJECTS_URI='projects/'
-const WIKIS_URI='wikis/'
-const ISSUES_URI='issues/'
+const WIKIS_URI='wikis'
+const ISSUES_URI='issues'
 const axios = require('axios')
+const log4js = require('log4js')
+const url = require('url')
+const { setTimeout } = require('timers/promises')
 
-function main(projectIdOrKey) {
-  if(!isValidProject) {
-    console.error('プロジェクトが存在していません')
+log4js.configure({
+  appenders: {
+    dev: { type: "file", filename: "dev_output.log" },
+    prod: { type: "file", filename: "backlog_wiki_convert_output.log" }
+  },
+  categories: {
+    prod: { appenders: ["prod"], level: "info" },
+    default: { appenders: ["dev"], level: "debug" }
+  }
+});
+
+if (process.argv.length < 3) {
+  logger.warn('コマンドライン引数でプロジェクトIDを指定してください')
+  return
+}
+
+var logger
+if (process.argv.length >= 4) {
+  logger = log4js.getLogger(process.argv[3]);
+  logger.debug(process.argv[3])
+}
+else {
+  logger = log4js.getLogger('dev')
+}
+logger.debug(process.argv.length)
+logger.info("input log4js. level: " + logger.level)
+
+main(process.argv[2])
+
+/**
+ * メイン関数
+ * 
+ */
+async function main(projectIdOrKey) {
+  logger.info("---------------- start convert ----------------")
+  
+  if(!await isValidProject(projectIdOrKey)) {
+    logger.error('プロジェクトが存在していません')
     return
   }
 
-  var wikis = getWikis(projectIdOrKey)
-  updateWikisToMarkdown(wikis)
-  var issues = getIssues(projectIdOrKey)
-  updateIssuesToMarkdown(issues)
+  // wikiの更新
+  var wikis = await getWikis(projectIdOrKey)
+  await updateWikisToMarkdown(wikis)
 
+  /* この行をコメントアウトすると課題更新も有効になります
+  var issues = await getIssues(projectIdOrKey)
+  await updateIssuesToMarkdown(issues)
+  // */
+
+  logger.info("---------------- end convert ----------------")
+  log4js.shutdown((err) => {
+    if (err) throw err
+    process.exit(0)
+  })
 }
 
-// Backlogプロジェクトがあるか確認
-function isValidProject(projectIdOrKey) {
-  axios.get(API_BASE_URI + PROJECTS_URI + projectIdOrKey, {
+/**
+ * Backlogプロジェクトがあるか確認
+ * 
+ */
+async function isValidProject(projectIdOrKey) {
+  logger.debug("isValidProject")
+  var requestUrl = API_BASE_URI + PROJECTS_URI + projectIdOrKey
+  logger.info("requestUrl: " + requestUrl)
+  const res = await axios.get(requestUrl, {
     params: {
       apiKey: API_KEY
     }
   })
-  .then(res => {
-    console.debug(res.data.length)
-    console.debug(res.data)
-    return !!res.data.length
+  .catch(err => {
+    if (err.response) {
+      logger.error("errorStatus: " + err.response.status)
+    }
+    logger.error(err.message)
+    return false
   })
-  .catch(() => {return false})
-
+  return true
 }
-// Wiki一覧を取得
-function getWikis(projectIdOrKey) {
-  axios.get(API_BASE_URI + WIKIS_URI, {
+
+/**
+ * Wiki一覧を取得
+ * 
+ */
+async function getWikis(projectIdOrKey) {
+  logger.info("getWikis")
+  var requestUrl = API_BASE_URI + WIKIS_URI
+  logger.info("requestUrl: " + requestUrl)
+  const res = await axios.get(requestUrl, {
     params: {
       apiKey: API_KEY,
-      projectId: [projectIdOrKey]
+      projectIdOrKey: projectIdOrKey
     }
   })
-  .then(res => {
-    console.debug(res.data.length)
-    console.debug(res.data)
-    return res.data
-  })
-  .catch(() => {
+  .catch(err => {
+    if (err.response) {
+      logger.error("errorStatus: " + err.response.status)
+    }
+    logger.error(err.message)
     return []
   })
-
+  logger.info("get wikis: " + res.data.length)
+  return res.data
 }
 
-// WikiをMarkdownに更新する
-function updateWikisToMarkdown(wikis) {
-  console.log('update')
+/**
+ * 指定したWikiを取得
+ * 
+ */
+async function getWiki(wikiId) {
+  logger.info("getWiki")
+  var requestUrl = API_BASE_URI + WIKIS_URI + '/' + wikiId
+  logger.info("requestUrl: " + requestUrl)
+  const res = await axios.get(requestUrl, {
+    params: {
+      apiKey: API_KEY
+    }
+  })
+  .catch(err => {
+    if (err.response) {
+      logger.error("errorStatus: " + err.response.status)
+    }
+    logger.error(err.message)
+    return null
+  })
+  return res.data
+}
 
+/**
+ * WikiをMarkdownに更新する
+ * 
+ */
+async function updateWikisToMarkdown(wikis) {
+  logger.info('updateWikis')
+
+  var errorIdList = []
   for(var wiki of wikis) {
-
+    await setTimeout(1000)
+    logger.debug(wiki.id)
+    const res = await getWiki(wiki.id)
+    if (!res) {
+      logger.error('not found wiki: ' + wiki.id)
+      continue
+    }
+    logger.debug(res.content)
+    const newContent = convertToMarkdown(res.content)
+    logger.debug(newContent)
+    var requestUrl = API_BASE_URI + WIKIS_URI + '/' + wiki.id
+    const params = new url.URLSearchParams({
+      name: res.name,
+      content: newContent,
+      mailNotify: false
+    })
+    logger.info("requestUrl: " + requestUrl)
+    const updateRes = await axios.patch(requestUrl, params.toString(), {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      params: {
+        apiKey: API_KEY
+      }
+    })
+    .catch(err => {
+      logger.debug(err)
+      errorIdList.push(wiki.id)
+      if (err.response) {
+        logger.error("errorStatus: " + err.response.status)
+      }
+      logger.error("error update wiki. wiki ID: " + wiki.id + ", message: " + err.message)
+    })
+  }
+  if (errorIdList.length !== 0) {
+    logger.error(errorIdList.join(','))
   }
 
 }
 
 
-// 課題一覧を取得
-function getIssues(projectIdOrKey) {
-  axios.get(API_BASE_URI + ISSUES_URI, {
+/**
+ * 課題一覧を取得
+ * 
+ * 
+ */
+async function getIssues(projectIdOrKey) {
+  logger.debug("getIssues")
+  var requestUrl = API_BASE_URI + ISSUES_URI
+  logger.debug("requestUrl: " + requestUrl)
+  const res = await axios.get(requestUrl, {
     params: {
       apiKey: API_KEY,
       projectId: [projectIdOrKey]
     }
   })
-  .then(res => {
-    console.debug(res.data.length)
-    console.debug(res.data)
-    return res.data
+  .catch(err => {
+    if (err.response) {
+      logger.error("errorStatus: " + err.response.status)
+    }
+    logger.error(err.message)
+    return false
   })
-  .catch(() => {
-    return []
+  logger.debug(res.data.length)
+  return res.data
+}
+
+/**
+ * 指定した課題を取得
+ */
+async function getIssue(issueIdOrKey) {
+  logger.debug("getIssue")
+  var requestUrl = API_BASE_URI + ISSUES_URI + "/" + issueIdOrKey
+  logger.debug("requestUrl: " + requestUrl)
+  const res = await axios.get(requestUrl, {
+    params: {
+      apiKey: API_KEY
+    }
   })
+  .catch(err => {
+    if (err.response) {
+      logger.error("errorStatus: " + err.response.status)
+    }
+    logger.error(err.message)
+    return false
+  })
+  logger.debug(res.data.length)
+  return res.data
+}
+
+/**
+ * 課題をMarkdownに更新する
+ * 
+ */
+async function updateIssuesToMarkdown(issues) {
+  logger.debug('updateIssues')
+  // for(var issue of issues) {
+    var issue = issues[0]
+    logger.debug(issue.id)
+    const res = await getIssue(issue.id)
+    logger.debug(res)
+    const newDescription = convertToMarkdown(res.description)
+    logger.debug(newDescription)
+  // }
 
 }
 
-// 課題をMarkdownに更新する
-function updateIssuesToMarkdown(issues) {
-  console.log('update')
-  for(var issue of issues) {
-    
-  }
-
-}
-
-// 変換用関数
+/**
+ * 中身のテキストをMarkdownに変換する
+ * 
+ */
 function convertToMarkdown(e) {
-  console.log(e)
-  return
+  logger.debug(e)
   const t = [],
     n = [],
     r = [],
@@ -318,10 +481,3 @@ function convertToMarkdown(e) {
     return (n = a(n));
   })).trim();
 }
-
-if (process.argv.length < 3) {
-  console.warn('コマンドライン引数でプロジェクトIDを指定してください')
-  return
-}
-
-main(process.argv[2])
